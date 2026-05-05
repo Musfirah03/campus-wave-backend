@@ -48,6 +48,10 @@ const userSchema = new mongoose.Schema(
     profileImage: {
       type: String,
     },
+    coursesSetupDone: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

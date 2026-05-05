@@ -1,4 +1,6 @@
 const Course = require('../models/Course');
+const Group  = require('../models/Group');
+const User   = require('../models/User');
 
 exports.createCourse = async (req, res) => {
   const { title, code, description, department, semester, section } = req.body;
@@ -26,11 +28,53 @@ exports.createCourse = async (req, res) => {
 };
 
 exports.getAllCourses = async (req, res) => {
-  const courses = await Course.find()
+  const filter = {};
+  if (req.query.department) filter.department = req.query.department;
+  if (req.query.semester)   filter.semester   = req.query.semester;
+
+  const courses = await Course.find(filter)
     .populate('teacher', 'fullName email department')
     .populate('students', 'fullName email');
 
   res.json({ courses });
+};
+
+exports.enrollBulk = async (req, res) => {
+  const { courseIds } = req.body;
+  if (!Array.isArray(courseIds)) {
+    return res.status(400).json({ message: 'courseIds must be an array' });
+  }
+
+  const userId     = req.user._id;
+  const { department, semester } = req.user;
+
+  for (const courseId of courseIds) {
+    const course = await Course.findById(courseId);
+    if (!course) continue;
+
+    await Course.updateOne({ _id: courseId }, { $addToSet: { students: userId } });
+
+    await Group.findOneAndUpdate(
+      { type: 'course', courseId: course._id },
+      {
+        $setOnInsert: {
+          name:         `${course.code} – ${course.title}`,
+          description:  `Chat group for ${course.title}`,
+          type:         'course',
+          courseId:     course._id,
+          department,
+          semester,
+          autoEnrolled: true,
+        },
+        $addToSet: { members: userId },
+      },
+      { upsert: true, new: true }
+    );
+  }
+
+  await User.findByIdAndUpdate(userId, { coursesSetupDone: true });
+
+  res.json({ message: 'Enrolled successfully' });
 };
 
 exports.getCourseById = async (req, res) => {
