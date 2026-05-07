@@ -7,7 +7,7 @@ const groupSchema = new Schema(
     description: { type: String, trim: true },
     type: {
       type:     String,
-      enum:     ['course', 'department', 'class', 'semester', 'study', 'club', 'announcement', 'dm'],
+      enum:     ['course', 'department', 'class', 'study', 'club', 'announcement', 'dm'],
       required: true,
     },
     members:        [{ type: Schema.Types.ObjectId, ref: 'User' }],
@@ -16,7 +16,7 @@ const groupSchema = new Schema(
     membersCanPost: { type: Boolean, default: true },
     // set for course groups
     courseId: { type: Schema.Types.ObjectId, ref: 'Course' },
-    // set for department / class / semester groups
+    // set for department / class groups
     department: { type: String, trim: true },
     semester:   { type: String, trim: true },
     section:    { type: String, trim: true, uppercase: true },
@@ -31,8 +31,6 @@ groupSchema.index({ type: 1, courseId: 1 },
   { unique: true, partialFilterExpression: { type: 'course' } });
 groupSchema.index({ type: 1, department: 1 },
   { unique: true, partialFilterExpression: { type: 'department' } });
-groupSchema.index({ type: 1, department: 1, semester: 1 },
-  { unique: true, partialFilterExpression: { type: 'semester' } });
 groupSchema.index({ type: 1, department: 1, semester: 1, section: 1 },
   { unique: true, partialFilterExpression: { type: 'class' } });
 

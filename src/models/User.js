@@ -52,6 +52,9 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    expoPushToken: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

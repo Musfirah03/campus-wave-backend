@@ -46,13 +46,17 @@ exports.enrollBulk = async (req, res) => {
   }
 
   const userId     = req.user._id;
-  const { department, semester } = req.user;
+  const { department, semester, role } = req.user;
+  const isTeacher  = role === 'teacher' || role === 'admin';
 
   for (const courseId of courseIds) {
     const course = await Course.findById(courseId);
     if (!course) continue;
 
-    await Course.updateOne({ _id: courseId }, { $addToSet: { students: userId } });
+    // Students are added to Course.students; teachers just join the group chat
+    if (!isTeacher) {
+      await Course.updateOne({ _id: courseId }, { $addToSet: { students: userId } });
+    }
 
     await Group.findOneAndUpdate(
       { type: 'course', courseId: course._id },
@@ -62,8 +66,8 @@ exports.enrollBulk = async (req, res) => {
           description:  `Chat group for ${course.title}`,
           type:         'course',
           courseId:     course._id,
-          department,
-          semester,
+          department:   department || course.department,
+          semester:     semester   || course.semester,
           autoEnrolled: true,
         },
         $addToSet: { members: userId },

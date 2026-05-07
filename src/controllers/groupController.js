@@ -17,6 +17,7 @@ exports.getMyGroups = async (req, res) => {
       _id:        '$group',
       text:       { $first: '$text' },
       attachment: { $first: '$attachment' },
+      invite:     { $first: '$invite' },
       sender:     { $first: '$sender' },
       createdAt:  { $first: '$createdAt' },
     }},
@@ -40,8 +41,9 @@ exports.getMyGroups = async (req, res) => {
     if (lm) {
       obj.lastMessage = {
         text:       lm.text,
-        attachment: lm.attachment ? { name: lm.attachment.name } : undefined,
-        sender:     lm.sender ? { _id: lm.sender._id, fullName: lm.sender.fullName } : undefined,
+        attachment: lm.attachment ? { name: lm.attachment.name, mimeType: lm.attachment.mimeType } : undefined,
+        invite:     lm.invite     ? { groupName: lm.invite.groupName } : undefined,
+        sender:     lm.sender     ? { _id: lm.sender._id, fullName: lm.sender.fullName } : undefined,
         createdAt:  lm.createdAt,
       };
     }
@@ -52,14 +54,28 @@ exports.getMyGroups = async (req, res) => {
   res.json({ groups });
 };
 
-// GET /api/groups/discover  — public non-auto groups user hasn't joined
+// GET /api/groups/discover  — public groups user hasn't joined
+// Structured groups (course/class/department) are scoped to the user's department.
+// Community groups (study/club/announcement) are shown for all.
 exports.discoverGroups = async (req, res) => {
-  const raw = await Group.find({
-    isPublic:     true,
-    autoEnrolled: false,
-    type:         { $nin: ['dm'] },
-    members:      { $ne: req.user._id },
-  }).sort({ createdAt: -1 });
+  const { department } = req.user;
+
+  const baseFilter = {
+    isPublic: true,
+    type:     { $nin: ['dm'] },
+    members:  { $ne: req.user._id },
+  };
+
+  if (department) {
+    baseFilter.$or = [
+      { type: { $in: ['course', 'class', 'department'] }, department },
+      { type: { $in: ['study', 'club', 'announcement'] } },
+    ];
+  }
+
+  const raw = await Group.find(baseFilter)
+    .populate('courseId', 'code title')
+    .sort({ type: 1, semester: 1, createdAt: -1 });
 
   const groups = raw.map((g) => ({
     _id:         g._id,
@@ -67,9 +83,14 @@ exports.discoverGroups = async (req, res) => {
     description: g.description,
     type:        g.type,
     isPublic:    g.isPublic,
+    autoEnrolled: g.autoEnrolled,
     membersCanPost: g.membersCanPost,
     createdBy:   g.createdBy,
     memberCount: g.members.length,
+    department:  g.department,
+    semester:    g.semester,
+    section:     g.section,
+    courseId:    g.courseId,
     createdAt:   g.createdAt,
     updatedAt:   g.updatedAt,
   }));
@@ -109,6 +130,18 @@ exports.joinGroup = async (req, res) => {
   const group = await Group.findById(req.params.groupId);
   if (!group) return res.status(404).json({ message: 'Group not found' });
   if (!group.isPublic) return res.status(403).json({ message: 'This group is private' });
+
+  const already = group.members.some((m) => m.toString() === req.user._id.toString());
+  if (already) return res.status(409).json({ message: 'Already a member' });
+
+  await Group.findByIdAndUpdate(group._id, { $addToSet: { members: req.user._id } });
+  res.json({ message: 'Joined successfully' });
+};
+
+// POST /api/groups/:groupId/join-via-invite — bypasses isPublic; invite card acts as permission
+exports.joinViaInvite = async (req, res) => {
+  const group = await Group.findById(req.params.groupId);
+  if (!group) return res.status(404).json({ message: 'Group not found' });
 
   const already = group.members.some((m) => m.toString() === req.user._id.toString());
   if (already) return res.status(409).json({ message: 'Already a member' });

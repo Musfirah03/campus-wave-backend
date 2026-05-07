@@ -5,6 +5,7 @@ const courseController = require('../controllers/courseController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 
+router.patch('/push-token', protect, userController.savePushToken);
 router.get('/', protect, userController.getAllUsers);
 router.get('/:userId', protect, userController.getUserById);
 router.put('/:userId', protect, userController.updateUser);

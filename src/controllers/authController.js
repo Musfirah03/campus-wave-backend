@@ -20,52 +20,37 @@ const formatUser = (user) => ({
   coursesSetupDone: user.coursesSetupDone ?? false,
 });
 
-// Enrolls a newly-registered student into matching courses and groups.
-// Silently skips steps that aren't applicable (e.g. no courses exist yet).
+// Enrolls a newly-registered user into matching auto-enrolled groups.
+// Teachers get the department group only; students get semester + class + department.
 const autoEnrollUser = async (user) => {
-  const { _id, department, semester, section } = user;
-  if (!department || !semester || !section) return;
+  const { _id, role, department, semester, section } = user;
+  if (!department) return;
 
-  // ── 1. Create/find semester group (dept + semester) ───────────────────────
-  await Group.findOneAndUpdate(
-    { type: 'semester', department, semester },
-    {
-      $setOnInsert: {
-        name:           `${department} · Semester ${semester}`,
-        description:    `Semester ${semester} group for ${department}`,
-        type:           'semester',
-        department,
-        semester,
-        autoEnrolled:   true,
-        membersCanPost: true,
-        isPublic:       false,
+  const isTeacher = role === 'teacher' || role === 'admin';
+
+  if (!isTeacher && semester && section) {
+    // ── 1. Create/find class group (dept + semester + section) ───────────────
+    await Group.findOneAndUpdate(
+      { type: 'class', department, semester, section },
+      {
+        $setOnInsert: {
+          name:           `${department} · Sem ${semester} · ${section}`,
+          description:    `Class group for ${department}, Semester ${semester}, Section ${section}`,
+          type:           'class',
+          department,
+          semester,
+          section,
+          autoEnrolled:   true,
+          membersCanPost: true,
+          isPublic:       false,
+        },
+        $addToSet: { members: _id },
       },
-      $addToSet: { members: _id },
-    },
-    { upsert: true, new: true }
-  );
+      { upsert: true, new: true }
+    );
+  }
 
-  // ── 2. Create/find class group (dept + semester + section) ─────────────────
-  await Group.findOneAndUpdate(
-    { type: 'class', department, semester, section },
-    {
-      $setOnInsert: {
-        name:           `${department} · Sem ${semester} · ${section}`,
-        description:    `Class group for ${department}, Semester ${semester}, Section ${section}`,
-        type:           'class',
-        department,
-        semester,
-        section,
-        autoEnrolled:   true,
-        membersCanPost: true,
-        isPublic:       false,
-      },
-      $addToSet: { members: _id },
-    },
-    { upsert: true, new: true }
-  );
-
-  // ── 3. Create/find department group ────────────────────────────────────────
+  // ── 3. Create/find department group (all roles with a department) ──────────
   await Group.findOneAndUpdate(
     { type: 'department', department },
     {

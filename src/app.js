@@ -4,12 +4,14 @@ const helmet  = require('helmet');
 const morgan  = require('morgan');
 const path    = require('path');
 
-const authRoutes       = require('./routes/authRoutes');
-const userRoutes       = require('./routes/userRoutes');
-const courseRoutes     = require('./routes/courseRoutes');
-const departmentRoutes = require('./routes/departmentRoutes');
-const groupRoutes      = require('./routes/groupRoutes');
-const messageRoutes    = require('./routes/messageRoutes');
+const authRoutes         = require('./routes/authRoutes');
+const userRoutes         = require('./routes/userRoutes');
+const courseRoutes       = require('./routes/courseRoutes');
+const departmentRoutes   = require('./routes/departmentRoutes');
+const groupRoutes        = require('./routes/groupRoutes');
+const messageRoutes      = require('./routes/messageRoutes');
+const notificationRoutes   = require('./routes/notificationRoutes');
+const announcementRoutes   = require('./routes/announcementRoutes');
 
 const app = express();
 
@@ -28,11 +30,16 @@ app.use('/api/auth',        authRoutes);
 app.use('/api/users',       userRoutes);
 app.use('/api/courses',     courseRoutes);
 app.use('/api/departments', departmentRoutes);
-app.use('/api/groups',      groupRoutes);
-app.use('/api/messages',    messageRoutes);
+app.use('/api/groups',        groupRoutes);
+app.use('/api/messages',      messageRoutes);
+app.use('/api/notifications',  notificationRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // Global error handler — must have 4 params for Express to treat it as an error handler
 app.use((err, req, res, _next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ message: 'File too large. Maximum allowed size is 5 MB.' });
+  }
   const status  = err.status || err.statusCode || 500;
   const message = err.message || 'Internal server error';
   console.error(`[error] ${req.method} ${req.path} →`, err);

@@ -6,6 +6,7 @@ const {
   createGroup,
   findOrCreateDM,
   joinGroup,
+  joinViaInvite,
   leaveGroup,
   getGroupById,
   getAllGroups,
@@ -21,7 +22,8 @@ router.post('/dm',                findOrCreateDM);
 router.get('/',                   getAllGroups);
 router.post('/',                  createGroup);
 router.get('/:groupId',           getGroupById);
-router.post('/:groupId/join',     joinGroup);
-router.post('/:groupId/leave',    leaveGroup);
+router.post('/:groupId/join',            joinGroup);
+router.post('/:groupId/join-via-invite', joinViaInvite);
+router.post('/:groupId/leave',           leaveGroup);
 
 module.exports = router;

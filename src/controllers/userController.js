@@ -1,4 +1,11 @@
+const { v2: cloudinary } = require('cloudinary');
 const User = require('../models/User');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 exports.getAllUsers = async (req, res) => {
   const users = await User.find();
@@ -22,13 +29,34 @@ exports.uploadAvatar = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No image file provided' });
   }
-  const imageUrl = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
-  const user = await User.findByIdAndUpdate(
-    req.params.userId,
-    { profileImage: imageUrl },
-    { new: true }
-  );
-  res.json({ imageUrl, user });
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder:        'campus-connect/avatars',
+          public_id:     `avatar_${req.params.userId}`,
+          overwrite:     true,
+          resource_type: 'image',
+        },
+        (err, res) => (err ? reject(err) : resolve(res)),
+      );
+      stream.end(req.file.buffer);
+    });
+
+    const imageUrl = result.secure_url;
+    await User.findByIdAndUpdate(req.params.userId, { profileImage: imageUrl });
+    res.json({ imageUrl });
+  } catch (err) {
+    res.status(500).json({ message: `Upload failed: ${err?.message ?? 'Unknown error'}` });
+  }
+};
+
+exports.savePushToken = async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ message: 'token required' });
+  await User.findByIdAndUpdate(req.user._id, { expoPushToken: token });
+  res.json({ ok: true });
 };
 
 exports.updateUser = async (req, res) => {
