@@ -184,14 +184,22 @@ exports.findOrCreateDM = async (req, res) => {
     return res.status(400).json({ message: 'Cannot start a DM with yourself' });
   }
 
+  const User = require('../models/User');
+
   const existing = await Group.findOne({
     type: 'dm',
     members: { $all: [req.user._id, targetUserId], $size: 2 },
-  });
-  if (existing) return res.json({ group: existing });
+  }).populate('members', 'fullName profileImage');
 
-  const User = require('../models/User');
-  const target = await User.findById(targetUserId).select('fullName');
+  if (existing) {
+    const obj = existing.toObject();
+    const other = existing.members.find((m) => m._id.toString() !== req.user._id.toString());
+    obj.otherUser = other ? { _id: other._id, fullName: other.fullName, profileImage: other.profileImage } : null;
+    delete obj.members;
+    return res.json({ group: obj });
+  }
+
+  const target = await User.findById(targetUserId).select('fullName profileImage');
   if (!target) return res.status(404).json({ message: 'User not found' });
 
   const group = await Group.create({
@@ -203,7 +211,11 @@ exports.findOrCreateDM = async (req, res) => {
     autoEnrolled:   false,
   });
 
-  res.status(201).json({ group });
+  const obj = group.toObject();
+  obj.otherUser = { _id: target._id, fullName: target.fullName, profileImage: target.profileImage ?? null };
+  delete obj.members;
+
+  res.status(201).json({ group: obj });
 };
 
 // GET /api/groups  — all groups (admin use)

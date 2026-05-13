@@ -12,8 +12,12 @@ const groupRoutes        = require('./routes/groupRoutes');
 const messageRoutes      = require('./routes/messageRoutes');
 const notificationRoutes   = require('./routes/notificationRoutes');
 const announcementRoutes   = require('./routes/announcementRoutes');
+const adminRoutes          = require('./routes/adminRoutes');
+const reportRoutes         = require('./routes/reportRoutes');
 
 const app = express();
+
+app.set('etag', false);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
@@ -34,6 +38,8 @@ app.use('/api/groups',        groupRoutes);
 app.use('/api/messages',      messageRoutes);
 app.use('/api/notifications',  notificationRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/admin',        adminRoutes);
+app.use('/api/reports',      reportRoutes);
 
 // Global error handler — must have 4 params for Express to treat it as an error handler
 app.use((err, req, res, _next) => {

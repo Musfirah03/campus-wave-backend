@@ -11,6 +11,7 @@ const {
   getGroupById,
   getAllGroups,
 } = require('../controllers/groupController');
+const { requestLeave } = require('../controllers/leaveRequestController');
 
 const router = express.Router();
 
@@ -24,6 +25,7 @@ router.post('/',                  createGroup);
 router.get('/:groupId',           getGroupById);
 router.post('/:groupId/join',            joinGroup);
 router.post('/:groupId/join-via-invite', joinViaInvite);
-router.post('/:groupId/leave',           leaveGroup);
+router.post('/:groupId/leave',               leaveGroup);
+router.post('/:groupId/leave-request',       requestLeave);
 
 module.exports = router;

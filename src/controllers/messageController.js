@@ -1,4 +1,5 @@
 const { v2: cloudinary } = require('cloudinary');
+const path    = require('path');
 const Message = require('../models/Message');
 const Group   = require('../models/Group');
 
@@ -48,14 +49,18 @@ exports.uploadAttachment = async (req, res) => {
 
   const isImage = req.file.mimetype.startsWith('image/');
 
+  // Build a public_id that includes the file extension so the delivery URL
+  // has the extension and the device can identify the file type.
+  const ext      = path.extname(req.file.originalname);
+  const base     = path.basename(req.file.originalname, ext).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 60);
+  const publicId = `campus-connect/attachments/${base}_${Date.now()}${ext}`;
+
   try {
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder:          'campus-connect/attachments',
           resource_type:   isImage ? 'image' : 'raw',
-          use_filename:    true,
-          unique_filename: true,
+          public_id:       publicId,
           overwrite:       false,
         },
         (err, result) => {

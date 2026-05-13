@@ -5,6 +5,17 @@ const Group        = require('./models/Group');
 const User         = require('./models/User');
 const Notification = require('./models/Notification');
 
+// socketId -> { userId, groups: Set<string> }
+const socketState = new Map();
+
+function isUserViewingGroup(userId, groupId) {
+  const gid = groupId.toString();
+  for (const state of socketState.values()) {
+    if (state.userId === userId && state.groups.has(gid)) return true;
+  }
+  return false;
+}
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: '*' },
@@ -25,20 +36,25 @@ function initSocket(httpServer) {
   io.on('connection', (socket) => {
     console.log(`[socket] connected  userId=${socket.userId}`);
 
+    socketState.set(socket.id, { userId: socket.userId, groups: new Set() });
+
     // Each user automatically joins their personal notification room
     socket.join(`user_${socket.userId}`);
 
     socket.on('disconnect', (reason) => {
       console.log(`[socket] disconnected userId=${socket.userId} reason=${reason}`);
+      socketState.delete(socket.id);
     });
 
     socket.on('joinGroup', (groupId) => {
       console.log(`[socket] joinGroup  userId=${socket.userId} groupId=${groupId}`);
       socket.join(groupId);
+      socketState.get(socket.id)?.groups.add(groupId.toString());
     });
 
     socket.on('leaveGroup', (groupId) => {
       socket.leave(groupId);
+      socketState.get(socket.id)?.groups.delete(groupId.toString());
     });
 
     socket.on('sendMessage', async ({ groupId, text, attachment, replyTo, invite }) => {
@@ -161,10 +177,12 @@ async function _sendMessageNotifications(io, { group, message, senderId }) {
       : (message.attachment?.name ?? 'Sent an attachment');
     const groupName  = group.name;
 
-    // All members except the sender — fetch with push tokens
-    const recipientDocs = await User.find({
+    // All members except the sender and those currently viewing this chat
+    const recipientDocs = (await User.find({
       _id: { $in: group.members.filter((m) => m.toString() !== senderId) },
-    }).select('_id expoPushToken');
+    }).select('_id expoPushToken')).filter(
+      (u) => !isUserViewingGroup(u._id.toString(), group._id),
+    );
 
     if (recipientDocs.length === 0) return;
 

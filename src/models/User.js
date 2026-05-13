@@ -52,8 +52,20 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    blocked: {
+      type: Boolean,
+      default: false,
+    },
     expoPushToken: {
       type: String,
+    },
+    resetOtp: {
+      type: String,
+      select: false,
+    },
+    resetOtpExpire: {
+      type: Date,
+      select: false,
     },
   },
   { timestamps: true }
