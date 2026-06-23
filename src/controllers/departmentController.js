@@ -33,6 +33,11 @@ function parseCSV(buffer) {
   }).filter((r) => Object.values(r).some((v) => v));
 }
 
+exports.getPublicDepartments = async (req, res) => {
+  const departments = await Department.find({}, 'name code').sort({ name: 1 });
+  res.json({ departments });
+};
+
 exports.createDepartment = async (req, res) => {
   const { name, code, description, head } = req.body;
 

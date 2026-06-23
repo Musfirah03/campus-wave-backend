@@ -4,6 +4,7 @@ const departmentController = require('../controllers/departmentController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const uploadCSV = require('../middleware/uploadCSV');
 
+router.get('/public',                                                  departmentController.getPublicDepartments);
 router.get('/get-departments',                     protect,            departmentController.getAllDepartments);
 router.get('/get-department/:departmentId',        protect,            departmentController.getDepartmentById);
 router.post('/create-department',                  protect, adminOnly, departmentController.createDepartment);
