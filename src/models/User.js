@@ -1,11 +1,13 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const UNIVERSITY_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.(edu|edu\.pk)$/i;
+
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    fullName: {
       type: String,
-      required: [true, 'Name is required'],
+      required: [true, 'Full name is required'],
       trim: true,
     },
     email: {
@@ -14,6 +16,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      validate: {
+        validator: (v) => UNIVERSITY_EMAIL_REGEX.test(v),
+        message: 'Must be a valid university email address',
+      },
     },
     password: {
       type: String,
@@ -21,14 +27,53 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
       select: false,
     },
+    role: {
+      type: String,
+      enum: ['student', 'teacher', 'admin'],
+      default: 'student',
+    },
+    department: {
+      type: String,
+      trim: true,
+    },
+    semester: {
+      type: String,
+      trim: true,
+    },
+    section: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    profileImage: {
+      type: String,
+    },
+    coursesSetupDone: {
+      type: Boolean,
+      default: false,
+    },
+    blocked: {
+      type: Boolean,
+      default: false,
+    },
+    expoPushToken: {
+      type: String,
+    },
+    resetOtp: {
+      type: String,
+      select: false,
+    },
+    resetOtpExpire: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 userSchema.methods.comparePassword = function (candidate) {

@@ -1,22 +1,55 @@
 const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
+const cors    = require('cors');
+const helmet  = require('helmet');
+const morgan  = require('morgan');
+const path    = require('path');
 
-const authRoutes = require('./routes/authRoutes');
+const authRoutes         = require('./routes/authRoutes');
+const userRoutes         = require('./routes/userRoutes');
+const courseRoutes       = require('./routes/courseRoutes');
+const departmentRoutes   = require('./routes/departmentRoutes');
+const groupRoutes        = require('./routes/groupRoutes');
+const messageRoutes      = require('./routes/messageRoutes');
+const notificationRoutes   = require('./routes/notificationRoutes');
+const announcementRoutes   = require('./routes/announcementRoutes');
+const adminRoutes          = require('./routes/adminRoutes');
+const reportRoutes         = require('./routes/reportRoutes');
 
 const app = express();
 
-app.use(helmet());
+app.set('etag', false);
+
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth',        authRoutes);
+app.use('/api/users',       userRoutes);
+app.use('/api/courses',     courseRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/groups',        groupRoutes);
+app.use('/api/messages',      messageRoutes);
+app.use('/api/notifications',  notificationRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/admin',        adminRoutes);
+app.use('/api/reports',      reportRoutes);
+
+// Global error handler — must have 4 params for Express to treat it as an error handler
+app.use((err, req, res, _next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ message: 'File too large. Maximum allowed size is 5 MB.' });
+  }
+  const status  = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+  console.error(`[error] ${req.method} ${req.path} →`, err);
+  res.status(status).json({ message });
+});
 
 module.exports = app;
